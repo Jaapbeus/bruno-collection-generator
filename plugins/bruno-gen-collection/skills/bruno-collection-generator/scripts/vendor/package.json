@@ -1,0 +1,13 @@
+{
+  "name": "bruno-gen-collection-vendor",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned runtime dependencies for bruno-gen-collection, committed so the skill never loads code from the repository it inspects and never needs a network install. Regenerate with: npm ci --omit=dev --ignore-scripts",
+  "license": "MIT",
+  "dependencies": {
+    "@usebruno/converters": "0.21.0",
+    "@usebruno/filestore": "0.10.0",
+    "ajv": "8.20.0",
+    "yaml": "2.9.0"
+  }
+}

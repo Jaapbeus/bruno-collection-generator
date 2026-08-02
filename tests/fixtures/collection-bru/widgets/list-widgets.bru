@@ -1,0 +1,23 @@
+meta {
+  name: List widgets
+  type: http
+  seq: 1
+  tags: [
+    read
+  ]
+}
+
+get {
+  url: {{baseUrl}}/v1/widgets?country=NL
+  body: none
+  auth: inherit
+}
+
+params:query {
+  country: NL
+  ~limit: 50
+}
+
+docs {
+  Lists widgets for one country.
+}

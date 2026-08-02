@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Widget Functions (legacy)",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

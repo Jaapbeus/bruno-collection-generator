@@ -1,0 +1,12 @@
+{
+  "collection_name": "Widget Functions (legacy)",
+  "output_dir": "bruno/collection",
+  "environments": {
+    "Local": "http://localhost:7071",
+    "Test": "https://stale-test.example.com"
+  },
+  "default_headers": {
+    "Content-Type": "application/json",
+    "x-correlation-id": "{{$guid}}"
+  }
+}

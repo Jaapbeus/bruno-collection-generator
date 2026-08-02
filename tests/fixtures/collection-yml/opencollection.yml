@@ -1,0 +1,23 @@
+opencollection: 1.0.0
+
+info:
+  name: Widget API
+
+request:
+  headers:
+    - name: Accept
+      value: application/json
+  auth:
+    type: bearer
+    token: "{{accessToken}}"
+
+docs:
+  content: Synthetic fixture collection in YAML. Every value is fake.
+  type: text/markdown
+bundled: false
+extensions:
+  bruno:
+    ignore:
+      - node_modules
+      - .git
+      - .bruno-gen

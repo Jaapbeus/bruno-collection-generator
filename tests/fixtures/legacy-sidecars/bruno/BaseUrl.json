@@ -1,0 +1,5 @@
+{
+  "Local": "http://localhost:7071",
+  "Test": "https://test.example.com",
+  "Acceptance": "https://acc.example.com"
+}

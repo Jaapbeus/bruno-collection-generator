@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "jaapbeus-plugins",
+  "description": "Data integration tooling for Claude Code",
+  "owner": {
+    "name": "Jaap van Beusekom",
+    "url": "https://github.com/jaapbeus"
+  },
+  "plugins": [
+    {
+      "name": "bruno-gen-collection",
+      "displayName": "Bruno collection generator",
+      "source": "./plugins/bruno-gen-collection",
+      "author": {
+        "name": "Jaap van Beusekom",
+        "url": "https://github.com/jaapbeus"
+      },
+      "homepage": "https://github.com/Jaapbeus/bruno-collection-generator",
+      "repository": "https://github.com/Jaapbeus/bruno-collection-generator",
+      "license": "MIT",
+      "description": "Generates a Bruno API collection from your repository - from an OpenAPI, Postman or WSDL description when you have one, from your source code when you don't - and keeps it in sync without overwriting your edits. HTTP and REST only: GraphQL, gRPC and WebSocket are reported, not generated.",
+      "keywords": ["bruno", "bru", "api", "collection", "openapi", "rest-client", "generate"],
+      "category": "API Tools",
+      "tags": ["claude", "plugin", "skill", "bruno", "api", "collection", "generate"],
+      "strict": true,
+      "defaultEnabled": true
+    }
+  ]
+}

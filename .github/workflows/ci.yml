@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The Windows leg is the important one: the CRLF, reserved-filename and code-page defects
+  # only manifest there, and that is where this plugin is developed.
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+
+      # No `npm install`: the plugin's dependencies are committed under scripts/vendor/ and the
+      # repository itself has none. If this ever needs an install, something has gone wrong.
+      - name: Assert the repository needs no install
+        shell: bash
+        run: |
+          test ! -d node_modules || { echo "node_modules present at the repo root"; exit 1; }
+
+      - name: Manifests
+        run: node scripts/validate-manifests.mjs
+
+      - name: Vendored bundle matches its digest
+        run: node scripts/check-vendor-hash.mjs
+
+      - name: No committed node_modules, and no path near the Windows limit
+        shell: bash
+        run: |
+          if git ls-files | grep -q "node_modules/"; then
+            echo "node_modules is committed; a 187-char path breaks git checkout on Windows"
+            git ls-files | grep "node_modules/" | head -5
+            exit 1
+          fi
+          LONGEST=$(git ls-files | awk '{print length($0)}' | sort -rn | head -1)
+          echo "longest committed path: $LONGEST characters"
+          if [ "$LONGEST" -gt 150 ]; then
+            echo "a committed path exceeds 150 characters; Windows MAX_PATH is 260 including the workspace prefix"
+            git ls-files | awk 'length($0) > 150' | head -5
+            exit 1
+          fi
+
+      - name: Fixture hygiene (no real hosts, keys, BSNs, IBANs or emails)
+        run: node scripts/check-fixture-hygiene.mjs
+
+      - name: Byte hygiene (LF, no BOM, no null bytes)
+        run: node scripts/check-line-endings.mjs
+
+      - name: Tests
+        run: node scripts/run-tests.mjs
+
+      # Regenerating the fixtures must be a no-op. If it is not, either the fixtures were edited
+      # by hand or a Bruno library changed how it serialises - both need a human decision.
+      - name: Fixtures are reproducible
+        shell: bash
+        run: |
+          node tests/make-fixtures.mjs
+          if ! git diff --quiet -- tests/fixtures; then
+            echo "Regenerating the fixtures changed them:"
+            git --no-pager diff --stat -- tests/fixtures
+            exit 1
+          fi
+
+      - name: doctor runs on the fixtures and writes nothing
+        shell: bash
+        run: |
+          node plugins/bruno-gen-collection/skills/bruno-collection-generator/scripts/brunogen.mjs \
+            doctor --root tests/fixtures/collection-bru
+          node plugins/bruno-gen-collection/skills/bruno-collection-generator/scripts/brunogen.mjs \
+            doctor --root tests/fixtures/collection-yml
+          git diff --quiet || { echo "doctor modified the working tree"; git --no-pager diff --stat; exit 1; }
+
+  # The only job that proves a generated collection actually RUNS.
+  #
+  # Everything above checks bytes on disk. A collection can be valid .bru, byte-identical to its
+  # golden, and still send a request with no auth header or a literal {id} in the path - none of which
+  # is visible in a file comparison. This runs the collection with Bruno's own CLI against a loopback
+  # recorder and asserts on what arrived.
+  #
+  # Pinned to 4.0.0 deliberately: this is a required check, so it must not break because an upstream
+  # release changed a flag. The latest 4.x is exercised by bruno-latest.yml, which is allowed to fail.
+  execution:
+    name: real-Bruno execution gate (CLI 4.0.0)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Install Bruno CLI (pinned)
+        run: npm install -g @usebruno/cli@4.0.0
+
+      - name: bru --version
+        run: bru --version
+
+      # Loopback only: 127.0.0.1 on an ephemeral port, served by the test itself. No external host and
+      # no identity provider, so this is safe to run on every pull request.
+      #
+      # One invocation, then assert it was not skipped. The test file skips itself when the CLI is
+      # absent so a bare development machine still passes - which means a green tick here would
+      # otherwise be compatible with the gate never having run at all.
+      #
+      # pipefail matters: without it the exit status of `node --test | tee` is tee's, and a failing
+      # test would pass this step silently.
+      - name: Execution gate
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test tests/execution.test.mjs 2>&1 | tee /tmp/exec.log
+
+      - name: The gate must actually have run
+        shell: bash
+        run: |
+          if grep -qi "Bruno CLI not installed" /tmp/exec.log; then
+            echo "the gate skipped itself; the CLI was not found"
+            exit 1
+          fi
+          grep -q "auth: inherit request arrives" /tmp/exec.log || {
+            echo "the auth case did not run - it is the reason this job exists"
+            exit 1
+          }

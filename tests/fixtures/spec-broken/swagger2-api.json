@@ -1,0 +1,6 @@
+{
+  "swagger": "2.0",
+  "info": { "title": "Legacy Widget API", "version": "1.0.0" },
+  "basePath": "/v1",
+  "paths": { "/widgets": { "get": { "responses": { "200": { "description": "ok" } } } } }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "bruno-gen-collection-repo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Development scripts for the bruno-gen-collection plugin marketplace. Not published; the plugin ships its own vendored dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node scripts/run-tests.mjs",
+    "check": "npm run check:manifests && npm run check:vendor && npm run check:hygiene && npm run check:bytes",
+    "check:manifests": "node scripts/validate-manifests.mjs",
+    "check:vendor": "node scripts/check-vendor-hash.mjs",
+    "check:hygiene": "node scripts/check-fixture-hygiene.mjs",
+    "check:bytes": "node scripts/check-line-endings.mjs",
+    "fixtures": "node tests/make-fixtures.mjs",
+    "doctor": "node plugins/bruno-gen-collection/skills/bruno-collection-generator/scripts/brunogen.mjs doctor",
+    "build:vendor": "node scripts/build-vendor-bundle.mjs"
+  }
+}

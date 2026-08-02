@@ -1,0 +1,90 @@
+# Does the current Bruno CLI still run what we generate?
+#
+# Separate from ci.yml on purpose. The pinned 4.0.0 gate there is a required check and must stay green
+# on its own merits; an upstream release renaming a flag is news, not a reason to block every pull
+# request. So this runs on a schedule, is allowed to fail, and opens an issue when it does.
+#
+# @usebruno/filestore, lang and schema are undocumented monorepo internals on lockstep 0.x minors, with
+# no changelog and no compatibility contract. A minor really can break the format we write. This is the
+# only thing that would tell us.
+
+name: Bruno latest
+
+on:
+  schedule:
+    # Mondays, 05:00 UTC. Weekly is enough for an advisory check.
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: bruno-latest
+  cancel-in-progress: true
+
+jobs:
+  latest:
+    name: execution gate against the latest Bruno CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+
+      - name: Install the latest Bruno CLI
+        run: npm install -g @usebruno/cli@latest
+
+      - name: Record the version under test
+        id: version
+        run: echo "bru=$(bru --version | head -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Execution gate
+        id: gate
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test tests/execution.test.mjs 2>&1 | tee /tmp/latest.log
+
+      - name: Open an issue if it broke
+        if: steps.gate.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRU_VERSION: ${{ steps.version.outputs.bru }}
+        run: |
+          title="Bruno CLI ${BRU_VERSION} fails the execution gate"
+
+          # One open issue per version, not one per week.
+          if gh issue list --state open --search "$title in:title" --json number --jq 'length' | grep -qv '^0$'; then
+            echo "an issue for ${BRU_VERSION} is already open"
+            exit 0
+          fi
+
+          {
+            echo "The pinned 4.0.0 gate in \`ci.yml\` is still green; this is the *latest* CLI only."
+            echo
+            echo "- CLI under test: \`${BRU_VERSION}\`"
+            echo "- Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo "Either the CLI changed a flag \`smoke\` passes, or it no longer reads something we write."
+            echo "Both are worth knowing before anyone pins a newer CLI."
+            echo
+            echo '<details><summary>Last 80 lines</summary>'
+            echo
+            echo '```'
+            tail -80 /tmp/latest.log
+            echo '```'
+            echo
+            echo '</details>'
+          } > /tmp/body.md
+
+          gh issue create --title "$title" --body-file /tmp/body.md --label upstream 2>/dev/null \
+            || gh issue create --title "$title" --body-file /tmp/body.md
+
+      - name: Fail the run so the schedule shows red
+        if: steps.gate.outcome == 'failure'
+        run: exit 1

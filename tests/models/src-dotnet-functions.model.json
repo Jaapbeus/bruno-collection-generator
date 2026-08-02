@@ -1,0 +1,193 @@
+{
+  "modelVersion": 1,
+  "collection": {
+    "name": "Widget Functions",
+    "format": "bru",
+    "outputDir": "bruno",
+    "routePrefix": "/api",
+    "baseUrlVar": "baseUrl",
+    "headers": [
+      {
+        "name": "Accept",
+        "value": "application/json",
+        "source": "declared"
+      }
+    ],
+    "auth": {
+      "mode": "apikey",
+      "source": "asked",
+      "apikey": {
+        "key": "x-functions-key",
+        "value": "{{functionKey}}",
+        "placement": "header"
+      }
+    },
+    "environments": [
+      {
+        "name": "local",
+        "vars": {
+          "baseUrl": "http://127.0.0.1:7071"
+        },
+        "secrets": [
+          "functionKey"
+        ]
+      }
+    ],
+    "docs": "Synthetic Azure Functions fixture. Every value is invented."
+  },
+  "folders": [
+    {
+      "id": "widgets",
+      "name": "widgets",
+      "auth": "inherit",
+      "seq": 1,
+      "source": "source:namespace"
+    }
+  ],
+  "endpoints": [
+    {
+      "endpointKey": "GET /api/widgets/{1}",
+      "name": "Get widget",
+      "folderId": "widgets",
+      "method": "GET",
+      "pathTemplate": "/widgets/{id}",
+      "tags": [],
+      "summary": "Fetch one widget by its identifier.",
+      "description": null,
+      "deprecated": false,
+      "destructive": false,
+      "params": [
+        {
+          "in": "path",
+          "name": "id",
+          "type": "string",
+          "format": null,
+          "required": true,
+          "repeatable": false,
+          "enum": null,
+          "value": "00000000-0000-0000-0000-000000000000",
+          "disabled": false,
+          "description": "route token",
+          "source": "synthesized",
+          "confidence": "low"
+        },
+        {
+          "in": "query",
+          "name": "country",
+          "type": "string",
+          "format": null,
+          "required": false,
+          "repeatable": false,
+          "enum": null,
+          "value": "NL",
+          "disabled": true,
+          "description": "read from req.Query[\"country\"]",
+          "source": "declared",
+          "confidence": "medium"
+        }
+      ],
+      "headers": [],
+      "auth": "inherit",
+      "authNotes": [
+        "AuthorizationLevel.Function: the runtime expects a function key in x-functions-key. Treated as a hint; the auth recipe was confirmed with the user."
+      ],
+      "body": {
+        "kind": "none"
+      },
+      "responses": [],
+      "asserts": [],
+      "settings": {},
+      "seq": null,
+      "provenance": {
+        "$skeleton": "source:dotnet:WidgetFunctions.cs",
+        "sourceRefs": [
+          "WidgetFunctions.cs"
+        ],
+        "fields": {}
+      },
+      "confidence": "high",
+      "flags": [
+        "placeholder-values"
+      ]
+    },
+    {
+      "endpointKey": "POST /api/widgets",
+      "name": "Create widget",
+      "folderId": "widgets",
+      "method": "POST",
+      "pathTemplate": "/widgets",
+      "tags": [],
+      "summary": "Create a widget.",
+      "description": null,
+      "deprecated": false,
+      "destructive": false,
+      "params": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "source": "declared"
+        }
+      ],
+      "auth": "inherit",
+      "authNotes": [
+        "AuthorizationLevel.Function: the runtime expects a function key in x-functions-key. Treated as a hint; the auth recipe was confirmed with the user."
+      ],
+      "body": {
+        "kind": "json",
+        "contentType": "application/json",
+        "typeName": "CreateWidgetRequest",
+        "json": {
+          "widget_name": "bolt",
+          "quantity": 12
+        },
+        "source": "declared",
+        "confidence": "medium"
+      },
+      "responses": [],
+      "asserts": [
+        {
+          "expression": "res.status",
+          "operator": "lt",
+          "value": "400",
+          "disabled": false
+        }
+      ],
+      "settings": {},
+      "seq": null,
+      "provenance": {
+        "$skeleton": "source:dotnet:WidgetFunctions.cs",
+        "sourceRefs": [
+          "WidgetFunctions.cs"
+        ],
+        "fields": {
+          "/body/widget_name": "declared:[JsonPropertyName] plus property initialiser",
+          "/body/quantity": "declared:property initialiser"
+        }
+      },
+      "confidence": "high",
+      "flags": []
+    }
+  ],
+  "sources": [
+    {
+      "rule": "R8",
+      "kind": "dotnet/azure-functions-isolated",
+      "path": "WidgetFunctions.cs",
+      "role": "skeleton",
+      "endpointCount": 2
+    }
+  ],
+  "warnings": [],
+  "unresolved": [],
+  "capability": [
+    {
+      "subject": "timer-trigger",
+      "supported": false,
+      "reason": "NightlySync is a [TimerTrigger]; it cannot be expressed as an HTTP request and is never emitted",
+      "paths": [
+        "WidgetFunctions.cs"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "bruno-gen-collection",
+  "displayName": "Bruno collection generator",
+  "version": "2.0.0-alpha.10",
+  "description": "Generates a Bruno API collection from your repository - from an OpenAPI, Postman or WSDL description when you have one, from your source code when you don't - and keeps it in sync without overwriting your edits. HTTP and REST only: GraphQL, gRPC and WebSocket are reported, not generated.",
+  "author": {
+    "name": "Jaap van Beusekom",
+    "url": "https://github.com/jaapbeus"
+  },
+  "homepage": "https://github.com/Jaapbeus/bruno-collection-generator",
+  "repository": "https://github.com/Jaapbeus/bruno-collection-generator",
+  "license": "MIT",
+  "keywords": [
+    "bruno",
+    "bru",
+    "api",
+    "collection",
+    "rest-client",
+    "openapi",
+    "postman-alternative",
+    "http"
+  ]
+}

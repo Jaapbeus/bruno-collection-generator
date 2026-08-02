@@ -1,0 +1,21 @@
+meta {
+  name: Token and marker
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/v1/things
+  body: none
+  auth: none
+}
+
+headers {
+  api-Key: __APIKEY__
+}
+
+vars:pre-request {
+  refreshToken: eyJhbGciOiJub25lIn0.eyJzdWIiOiJmaXh0dXJlIn0.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  exampleBsn: 123456782
+  exampleIban: NL91ABNA0417164300
+}

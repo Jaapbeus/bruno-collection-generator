@@ -1,0 +1,854 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Jaapbeus/bruno-collection-generator/api-model.schema.json",
+  "title": "bruno-gen-collection API model",
+  "description": "The intermediate representation handed from the model half to the deterministic writer. Not OpenAPI: it has to express seq, folder identity, inherit-auth, secret declarations, disabled parameters and per-field provenance, none of which OpenAPI can carry.",
+  "type": "object",
+  "required": [
+    "modelVersion",
+    "collection",
+    "endpoints"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "modelVersion": {
+      "const": 1
+    },
+    "collection": {
+      "$ref": "#/$defs/collection"
+    },
+    "folders": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/folder"
+      }
+    },
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/endpoint"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/unresolved"
+      }
+    },
+    "capability": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/capability"
+      }
+    }
+  },
+  "$defs": {
+    "provenanceSource": {
+      "description": "Where a value came from. Precedence runs human > config > observed > declared > synthesized.",
+      "enum": [
+        "human",
+        "config",
+        "observed",
+        "declared",
+        "synthesized"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "collection": {
+      "type": "object",
+      "required": [
+        "name",
+        "format",
+        "outputDir",
+        "routePrefix",
+        "baseUrlVar",
+        "environments"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "format": {
+          "enum": [
+            "bru",
+            "yml"
+          ]
+        },
+        "outputDir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative. Validated separately: absolute paths and '..' are hard errors, because this value can come from repository-supplied config.",
+          "not": {
+            "pattern": "(^|[\\\\/])\\.\\.([\\\\/]|$)"
+          }
+        },
+        "routePrefix": {
+          "type": "string",
+          "description": "REQUIRED with no default, deliberately. The previous implementation defaulted it to 'api' for every framework, which silently broke every non-Functions project. Use \"\" for host root.",
+          "pattern": "^(|/[^?#\\s]*)$"
+        },
+        "baseUrlVar": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/header"
+          }
+        },
+        "auth": {
+          "$ref": "#/$defs/auth"
+        },
+        "environments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "vars": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Plain values only. A credential must never appear here."
+              },
+              "secrets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Secret variable NAMES only. Values are never written."
+              }
+            }
+          }
+        },
+        "docs": {
+          "type": "string"
+        },
+        "extras": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Opt-in generators, e.g. {\"azure-functions-admin\": {\"functions\": [\"MyTimer\"]}}. Never inferred."
+        }
+      }
+    },
+    "folder": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "auth": {
+          "enum": [
+            "inherit",
+            "none"
+          ]
+        },
+        "seq": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    },
+    "header": {
+      "type": "object",
+      "required": [
+        "name",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/provenanceSource"
+        }
+      }
+    },
+    "param": {
+      "type": "object",
+      "required": [
+        "in",
+        "name",
+        "required",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "in": {
+          "enum": [
+            "query",
+            "path",
+            "header",
+            "cookie"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "format": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "description": "No default: a model that omits it fails validation rather than silently declaring nothing required, which would make the value-population criteria vacuous."
+        },
+        "repeatable": {
+          "type": "boolean",
+          "default": false
+        },
+        "enum": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "value": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/provenanceSource"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "description": "A mode alone is not enough. Requiring only `mode` with additionalProperties:true let {mode:'apikey', in:'header', name:'x-functions-key', value:'...'} validate: a plausible shape that the writer turns into `auth: apikey` with no credential block at all, so every request goes out unauthenticated and comes back 401. The nested block per mode is the shape the writer actually reads, so the schema requires exactly that and rejects any other key by name.",
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "none",
+            "inherit",
+            "basic",
+            "bearer",
+            "apikey",
+            "oauth2"
+          ]
+        },
+        "source": {
+          "enum": [
+            "asked",
+            "config",
+            "spec",
+            "default"
+          ]
+        },
+        "basic": {
+          "type": "object",
+          "required": [
+            "username",
+            "password"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "username": {
+              "type": "string"
+            },
+            "password": {
+              "type": "string"
+            }
+          }
+        },
+        "bearer": {
+          "type": "object",
+          "required": [
+            "token"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "token": {
+              "type": "string"
+            }
+          }
+        },
+        "apikey": {
+          "type": "object",
+          "required": [
+            "key",
+            "value",
+            "placement"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The header or query parameter name, e.g. x-functions-key."
+            },
+            "value": {
+              "type": "string",
+              "description": "A variable reference. Never a literal credential."
+            },
+            "placement": {
+              "enum": [
+                "header",
+                "queryparams"
+              ],
+              "description": "Bruno's own vocabulary: \"queryparams\", not \"query\"."
+            }
+          }
+        },
+        "oauth2": {
+          "type": "object",
+          "description": "Grant-specific; kept open because the flows differ, but the object must exist."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "const": "apikey"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "apikey"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "const": "bearer"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "bearer"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "const": "basic"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "basic"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "const": "oauth2"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "oauth2"
+            ]
+          }
+        }
+      ]
+    },
+    "body": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "none",
+            "json",
+            "text",
+            "xml",
+            "form-urlencoded",
+            "multipart-form",
+            "file",
+            "graphql"
+          ]
+        },
+        "contentType": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "typeName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "json": {},
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "entries": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/header"
+          }
+        },
+        "source": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/provenanceSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "confidence": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/confidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "required": [
+        "endpointKey",
+        "name",
+        "method",
+        "pathTemplate"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "endpointKey": {
+          "type": "string",
+          "pattern": "^[A-Z]+ /",
+          "description": "METHOD plus the COMPOSED path (routePrefix + pathTemplate) with each parameter replaced by its ordinal, e.g. \"GET /v1/widgets/{1}\". Parameter NAMES are excluded so renaming one is not a delete plus an add. This must equal what doctor computes from a real request URL, or adoption will not match."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fileName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method": {
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "HEAD",
+            "OPTIONS"
+          ]
+        },
+        "pathTemplate": {
+          "type": "string",
+          "pattern": "^/",
+          "description": "The route as declared in the code or spec, EXCLUDING collection.routePrefix. The full host-relative path is routePrefix + pathTemplate; compose them only through emit.mjs fullPath()."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated": {
+          "type": "boolean",
+          "default": false
+        },
+        "destructive": {
+          "type": "boolean",
+          "default": false,
+          "description": "DELETE, or a path containing restart/purge/reset/drop. Suppresses generated asserts and is excluded from smoke runs."
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/param"
+          }
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/header"
+          }
+        },
+        "auth": {
+          "oneOf": [
+            {
+              "enum": [
+                "inherit",
+                "none"
+              ]
+            },
+            {
+              "$ref": "#/$defs/auth"
+            }
+          ]
+        },
+        "authNotes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "$ref": "#/$defs/body"
+        },
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 599
+              },
+              "contentType": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "asserts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "expression",
+              "value"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "expression": {
+                "type": "string"
+              },
+              "operator": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": "string"
+              },
+              "disabled": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "seq": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "$skeleton": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sourceRefs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "fields": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "guessed-body",
+              "undocumented",
+              "placeholder-values",
+              "unresolved",
+              "variant"
+            ]
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "kind",
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": "string"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "enum": [
+            "skeleton",
+            "enricher"
+          ]
+        },
+        "endpointCount": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "fieldsContributed": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "redactions": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "unresolved": {
+      "type": "object",
+      "required": [
+        "endpointKey",
+        "field",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "endpointKey": {
+          "type": "string"
+        },
+        "field": {
+          "type": "string",
+          "description": "RFC 6901 JSON pointer, so a key containing a dot stays unambiguous."
+        },
+        "reason": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": [
+        "subject",
+        "supported"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "subject": {
+          "type": "string",
+          "description": "e.g. 'graphql', 'grpc', 'timer-trigger', 'azure-functions-in-process'"
+        },
+        "supported": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Bruno writes a trailing space after a key with an empty value (`refresh_token_url: `).
+# Trimming it changes the bytes, which makes the generator classify the file as
+# hand-edited and stop updating it. Never trim inside a collection.
+[bruno/**]
+trim_trailing_whitespace = false
+
+# Golden files must match generated output byte for byte, trailing space included,
+# and must not gain a final newline the writer did not emit.
+[tests/golden/**]
+trim_trailing_whitespace = false
+insert_final_newline = false
+
+[*.ps1]
+end_of_line = crlf
+
+[*.md]
+trim_trailing_whitespace = false

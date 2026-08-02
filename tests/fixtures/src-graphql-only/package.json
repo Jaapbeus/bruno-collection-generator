@@ -1,0 +1,6 @@
+{
+  "name": "graphql-only-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "dependencies": { "graphql": "16.9.0", "@apollo/server": "4.11.0" }
+}

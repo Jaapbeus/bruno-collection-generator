@@ -1,0 +1,19 @@
+# In .gitattributes the LAST matching pattern wins, so the general rule comes first and the
+# exemptions come last.
+
+# Normalise everything to LF, in the index AND in the working tree. `eol=lf` is deliberate
+# rather than relying on `text=auto`: with core.autocrlf=true a plain `text=auto` checks files
+# out as CRLF on Windows, which would fail this repository's own byte-hygiene check.
+* text=auto eol=lf
+
+# The frozen PowerShell implementation keeps CRLF.
+*.ps1 text eol=crlf
+
+# ---- exemptions (must stay last) ----
+
+# Golden files are compared byte-for-byte by the test harness. If git normalises their line
+# endings on checkout, every comparison fails for a reason that is invisible in an editor.
+tests/golden/** -text
+
+# Third-party vendored dependencies: never normalise, never diff, never count as our code.
+plugins/bruno-gen-collection/skills/bruno-collection-generator/scripts/vendor/** -text linguist-vendored

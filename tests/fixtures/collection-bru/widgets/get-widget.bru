@@ -1,0 +1,15 @@
+meta {
+  name: Get widget by id
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/v1/widgets/:widgetId
+  body: none
+  auth: inherit
+}
+
+params:path {
+  widgetId: 00000000-0000-0000-0000-000000000000
+}

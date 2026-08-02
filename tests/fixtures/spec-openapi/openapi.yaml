@@ -1,0 +1,168 @@
+# Synthetic OpenAPI 3.0.3 fixture. Every value is invented; no real host, key or identifier.
+#
+# It deliberately contains each case the value contract has to handle, including the four gaps
+# measured in Bruno's own converter: a property `default` (dropped by it), `format`-only strings
+# (emitted as ""), an optional enum parameter (emitted as one disabled param per member), and a
+# required header (emitted enabled but empty).
+openapi: 3.0.3
+info:
+  title: Widget API
+  version: 1.4.0
+  description: A synthetic API used to test spec ingestion.
+servers:
+  - url: https://api.example.com/v1
+security:
+  - widgetOauth: [widgets.read]
+components:
+  securitySchemes:
+    widgetOauth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://login.example.com/oauth2/token
+          scopes:
+            widgets.read: Read widgets
+            widgets.write: Create and change widgets
+  schemas:
+    Timestamps:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+    Widget:
+      allOf:
+        - $ref: '#/components/schemas/Timestamps'
+        - type: object
+          required: [name, quantity]
+          properties:
+            name:
+              type: string
+              example: bolt
+            quantity:
+              type: integer
+              default: 12
+            grade:
+              type: string
+              enum: [a, b, c]
+            releasedOn:
+              type: string
+              format: date
+            reference:
+              type: string
+              format: uuid
+            tags:
+              type: array
+              items:
+                type: string
+            dimensions:
+              type: object
+              properties:
+                widthMm:
+                  type: integer
+                  default: 40
+    WidgetPage:
+      type: object
+      properties:
+        widgets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Widget'
+paths:
+  /widgets:
+    get:
+      operationId: listWidgets
+      summary: List widgets
+      tags: [Widgets]
+      parameters:
+        - name: country
+          in: query
+          required: true
+          description: ISO 3166-1 alpha-2
+          schema:
+            type: string
+            enum: [NL, BE]
+          example: NL
+        - name: grade
+          in: query
+          required: false
+          description: Optional grade filter
+          schema:
+            type: string
+            enum: [a, b, c]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+        - name: changedSince
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: X-Tenant
+          in: header
+          required: true
+          description: Tenant that owns the widgets
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A page of widgets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WidgetPage'
+    post:
+      operationId: createWidget
+      summary: Create a widget
+      tags: [Widgets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Widget'
+      responses:
+        '201':
+          description: Created
+  /widgets/{widgetId}:
+    get:
+      operationId: getWidget
+      summary: Get one widget
+      tags: [Widgets]
+      parameters:
+        - name: widgetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The widget
+    delete:
+      operationId: deleteWidget
+      summary: Delete a widget
+      tags: [Widgets]
+      parameters:
+        - name: widgetId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+  /admin/reset:
+    post:
+      operationId: resetEverything
+      summary: Reset all widgets
+      tags: [Admin]
+      responses:
+        '202':
+          description: Accepted

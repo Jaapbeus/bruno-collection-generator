@@ -1,0 +1,27 @@
+# node_modules is never committed. The vendored dependencies ship as a single bundle
+# (scripts/vendor/bruno-libs.cjs) instead: a committed tree had a 187-character path, which
+# exceeds Windows MAX_PATH once a workspace prefix is added and made `git checkout` fail
+# outright, and the blanket rule below silently excluded nested node_modules from it anyway.
+node_modules/
+
+# Test output (generated during development)
+tests/.tmp/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# .NET build output. tests/fixtures/*/*.csproj are real projects, so an editor's C# tooling
+# (OmniSharp) restores and builds them in the background the moment the workspace is open -
+# regenerating these the instant they are deleted. Never anything to commit, and previously
+# unignored: an untracked obj/ or bin/ under a fixture is not visible in `git status` as a
+# problem, but check-fixture-hygiene.mjs still walks it (it scans the filesystem, not git), and
+# a test that copies a fixture wholesale can catch one of these mid-write.
+bin/
+obj/
+
+# check-history wordlist: never commit the real one (see scripts/history-wordlist.example.txt)
+history-wordlist.txt
+*.wordlist.txt

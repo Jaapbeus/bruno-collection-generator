@@ -1,0 +1,22 @@
+# Example wordlist for scripts/check-history.mjs
+#
+# One term per line; blank lines and # comments ignored. Matching is case-insensitive and
+# whole-word, so "acme" does not match "acmecorp".
+#
+# Copy this file somewhere OUTSIDE the repository, replace the fictional names below with the real
+# customer, supplier, project and internal-system names you do not want published, and pass it in:
+#
+#   node scripts/check-history.mjs --wordlist ../history-wordlist.txt
+#   BRUNOGEN_HISTORY_WORDLIST=../history-wordlist.txt node scripts/check-history.mjs
+#
+# Do not commit your real list. A list of customer names inside a repository that is about to become
+# public publishes exactly what the check exists to protect - which is why the wordlist is an input
+# rather than a committed file, and why .gitignore excludes history-wordlist.txt.
+
+# --- fictional examples only ---
+acme
+initech
+umbrella-logistics
+northwind
+contoso-internal
+project-albatross

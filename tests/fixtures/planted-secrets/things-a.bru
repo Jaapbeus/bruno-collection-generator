@@ -1,0 +1,15 @@
+meta {
+  name: Things A
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/v1/things
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{apiToken}}
+}

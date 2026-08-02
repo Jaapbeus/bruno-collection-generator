@@ -1,0 +1,8 @@
+{
+  "widget_name": "the name the user actually uses",
+  "quantity": 250,
+  "options": {
+    "gift_wrap": true,
+    "note": "fixture value, edited by hand"
+  }
+}
