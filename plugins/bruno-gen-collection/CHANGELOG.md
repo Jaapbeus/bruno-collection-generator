@@ -92,6 +92,15 @@ the reasoning file by file.
 - The runtime version lives in one small module, is printed by `version`, and is checked against the
   public plugin manifest so marketplace updates and generated lockfiles cannot drift.
 
+### Documented
+- **A secret or PII scanner will flag the lockfile, and it will be wrong.** Found on a real pipeline:
+  gitleaks and a hand-rolled pattern scan both matched a Dutch mobile number *inside* a sha256 digest in
+  `.bruno-gen/lock.json`. Not bad luck — a digest matches `06[-\s]?[0-9]{8}` 0.48% of the time, so a
+  collection of 300 files trips it 77% of the time. `reference/security.md` explains why the finding is
+  provably a false positive (the lockfile has no field that can carry a value) and `docs/ci.md` gives the
+  repair: anchor the pattern, because hex letters are word characters and `\b` keeps the rule out of
+  digests. No code change — the emitted hash stays hex.
+
 ## 2.0.0-alpha.9 — unreleased
 
 Found by running probe against the real corpus, read-only - the manual end-to-end pass the plan asks

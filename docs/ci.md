@@ -88,6 +88,28 @@ value to put in it. Treat it as a signal to fill in `bruno-gen.json`, not as a b
 
 `doctor` never prints a candidate value, so its output is safe to keep as a build artefact.
 
+### If your own scanner flags the lockfile
+
+It will, eventually, and it will be wrong. `.bruno-gen/lock.json` holds a path, an endpoint key, a kind,
+a sidebar number and a sha256 digest per file — nothing that can carry a value. But a 64-character hex
+digest is full of digit runs, so any numeric pattern without a word boundary matches one sooner or
+later: a sha256 digest matches `06[-\s]?[0-9]{8}` (a Dutch mobile number) 0.48% of the time, which is a
+77% chance somewhere in a collection of 300 files.
+
+Repair the pattern rather than the path. Hex letters are word characters, so anchoring the rule keeps it
+out of digests while still matching a real number:
+
+```toml
+# .gitleaks.toml — before: matches inside any sha256 digest
+regex = '''06[-\s]?[0-9]{8}'''
+# after
+regex = '''\b06[-\s]?[0-9]{8}\b'''
+```
+
+Exempting `**/.bruno-gen/lock.json` also silences it, and leaves the rule to misfire on the next digest
+or generated identifier that gets committed. If you do exempt, exempt that path only — the requests and
+environments are where a real leaked credential would sit.
+
 ## `smoke` in CI
 
 `smoke` sends real requests. That is fine against a deployed test environment and wrong against

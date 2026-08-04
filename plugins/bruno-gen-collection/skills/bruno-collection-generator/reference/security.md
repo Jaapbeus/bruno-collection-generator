@@ -55,6 +55,29 @@ name to every environment's secret declarations with no value, and record it in 
 value**, never copy it into a report, a commit message, a test fixture or a chat reply. Never grep for a
 known secret's value in order to prove it is absent — plant a synthetic one and test with that instead.
 
+## A hash is not a secret
+
+`.bruno-gen/lock.json` records, per file, only a relative path, an endpoint key, a kind, a sidebar
+number and a sha256 hex digest of the file's own text. It has no field that can carry a value from the
+API, the spec or an environment.
+
+Secret and PII scanners flag it anyway, because a 64-character hex digest contains long runs of digits,
+and a pattern that matches digits without a word boundary eventually matches one. Measured over 200,000
+digests: a sha256 hex digest matches `06[-\s]?[0-9]{8}` — a Dutch mobile number — 0.48% of the time, so
+a collection tracking 300 files trips it 77% of the time. This is arithmetic, not bad luck.
+
+Two things to tell a user who reports it:
+
+- **The finding is a false positive, and it is provably one.** Show them the entry: the matched text is
+  part of a digest, and there is no field in the lockfile that could hold a credential.
+- **The pattern is missing a word boundary.** `\b06[-\s]?[0-9]{8}\b` cannot match inside a hex digest,
+  because `[a-f]` are word characters. Fixing the pattern is the better repair — the same rule will
+  misfire on the next digest, checksum or generated identifier anyone commits.
+
+If the pattern cannot be changed, exempt the path (`**/.bruno-gen/lock.json`) and never the collection
+around it. The requests and environments are exactly where a committed credential would be, and
+`doctor` is not a substitute for the user's own scanner.
+
 ## Never
 
 - read a `.env` file for values (its variable *names* are fine)
