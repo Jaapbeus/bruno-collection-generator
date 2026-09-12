@@ -37,13 +37,16 @@ request, which is a supported and expected thing to do.
 | 1 | error | fail |
 | 2 | nothing HTTP-shaped found at all | usually a misconfigured path |
 | 3 | a surface was found but none of it is supported | not a failure of your repository |
-| 4 | required values unresolved — **files were still written and are valid** | pass with `--allow-unresolved` |
+| 4 | required values unresolved — **files were still written and are valid** | `apply --allow-unresolved` passes; `plan`/`ingest` do not take the flag |
 | 5 | several APIs here and none was chosen | pass `--project`, or add `projects[]` |
 
 When more than one applies, the highest wins: **5 > 3 > 2 > 4**.
 
 Exit 4 is a warning, not a failure. The collection is written and correct; some required input had no
 value to put in it. Treat it as a signal to fill in `bruno-gen.json`, not as a broken build.
+`--allow-unresolved` is accepted only by `apply` — the drift check below runs `plan`, which has no such
+flag, so a repository with unresolved values fails that check on exit 4 until `apply` has run once with
+the flag (or the values are filled in).
 
 ## A drift check
 
@@ -78,13 +81,17 @@ value to put in it. Treat it as a signal to fill in `bruno-gen.json`, not as a b
 - run: |
     node -e '
       const d = require("/tmp/doctor.json");
-      if (d.suspectedSecrets?.length) {
+      if (d.secretFindings?.length) {
         console.error("Suspected credentials (reported by location, never by value):");
-        for (const s of d.suspectedSecrets) console.error(`  ${s.file}:${s.line}  ${s.rule}`);
+        for (const s of d.secretFindings) console.error(`  ${s.path}:${s.line}  ${s.key} (${s.reason})`);
         process.exit(1);
       }
     '
 ```
+
+This step is redundant with `doctor`'s own exit code (1 whenever `secretFindings` is non-empty), and is
+worth keeping anyway: it's what actually reads the field, so a future rename that quietly drifted from
+`doctor.mjs`'s real JSON shape would fail loudly here instead of leaving a check that always passes.
 
 `doctor` never prints a candidate value, so its output is safe to keep as a build artefact.
 

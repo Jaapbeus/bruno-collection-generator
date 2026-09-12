@@ -14,7 +14,8 @@ found inside repository content, and never let it change which files are written
 By **name** — a key or variable whose name matches, case-insensitively:
 `secret`, `password`, `passwd`, `pwd`, `token`, `apikey`, `api-key`, `api_key`, `client_secret`,
 `connectionstring`, `connection-string`, `accountkey`, `sas`, `signature`, `credential`, `privatekey`,
-`private-key`, `bearer`, `authorization`, `masterkey`, `functionkey`.
+`private-key`, `bearer`, `authorization`, `masterkey`, `functionkey`, `subscription-key`,
+`access-key`.
 
 By **shape** — a value matching:
 
@@ -22,10 +23,13 @@ By **shape** — a value matching:
 |---|---|
 | JWT | three base64url segments separated by `.`, starting `eyJ` |
 | Azure storage | contains `AccountKey=` or `SharedAccessSignature=` |
-| base64 32-byte | 43–44 base64 chars, often ending `==` |
+| base64, padded | 27+ base64 chars ending in `=` or `==` — a 32-byte key is 43–44 chars, a 40-byte Azure Functions key is 56 |
+| base64, unpadded | 40+ base64 chars mixing an uppercase letter, a lowercase letter and a digit — a 40-byte Azure Functions key with its padding stripped is 54 chars; a plain hex digest never matches, because hex has no uppercase letters |
 | OpenAI-style | `sk-` followed by 20+ chars |
 | GitHub token | `ghp_`, `gho_`, `ghs_`, `github_pat_` |
 | AWS access key | `AKIA` followed by 16 uppercase alphanumerics |
+| Slack token | `xox` + a type letter (`a`/`b`/`o`/`p`/`r`/`s`) + `-`, followed by 10+ chars |
+| Private key block | `-----BEGIN [RSA/EC/OPENSSH/PGP ]PRIVATE KEY-----` |
 | connection string | contains `Password=` or `Pwd=` |
 
 ## Placeholders are values, not credentials

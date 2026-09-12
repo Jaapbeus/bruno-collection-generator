@@ -395,9 +395,12 @@ export function ingestOpenApi(spec, { collectionName, format = 'yml', outputDir 
         }
 
         if (kind === 'json') {
-          const built = example?.value ?? {};
+          let built = example?.value ?? {};
           if (discriminatorValue && built && typeof built === 'object' && !Array.isArray(built)) {
-            built[discriminatorValue.name] = discriminatorValue.value;
+            // Copy first: `example.value` can be a direct, uncloned reference into the parsed spec's
+            // example/schema tree, and mutating it in place would leak this endpoint's discriminator
+            // value into every other place the same $ref'd node is reachable from.
+            built = { ...built, [discriminatorValue.name]: discriminatorValue.value };
           }
           body = {
             kind: 'json',

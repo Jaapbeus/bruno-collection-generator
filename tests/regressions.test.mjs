@@ -13,7 +13,7 @@
 
 import { test, describe, before } from 'node:test';
 import assert from 'node:assert/strict';
-import { chmodSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync, renameSync } from 'node:fs';
 import { removeDir, runScopedBase, pruneStale } from './tmpdir.mjs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1423,5 +1423,99 @@ describe('the external review: what was actually still open', () => {
     assert.match(r.out, /cannot read/);
     assert.match(r.out, /adopt/, 'the diagnosis has to say what to do about it');
     assert.doesNotMatch(r.out, /\n\s+at /, 'a stack trace is not a diagnosis');
+  });
+});
+
+// =============================================================================================
+// A deep, full-codebase review against every doc claim, not just a recent change.
+describe('the deep review: what was actually still open', () => {
+  test('--reset refuses to touch a file recorded as adopted', () => {
+    const root = scratch();
+    writeFileSync(join(root, 'openapi.json'), JSON.stringify(SPEC));
+    const modelPath = join(root, 'model.json');
+    assert.equal(run(['ingest', '--root', root, '--out', modelPath]).code, 0);
+    assert.equal(run(['apply', '--root', root, '--model', modelPath]).code, 0);
+
+    const target = join(root, 'bruno/get-v1-things.yml');
+    const handWritten = readFileSync(target, 'utf8').replace('listThings', 'MyOwnRequest');
+    writeFileSync(target, handWritten);
+
+    // Mark it adopted, as `adopt` would for a file this tool did not generate.
+    const lockFile = join(root, 'bruno/.bruno-gen/lock.json');
+    const lock = JSON.parse(readFileSync(lockFile, 'utf8'));
+    lock.requests['get-v1-things.yml'].hash = 'adopted';
+    writeFileSync(lockFile, JSON.stringify(lock));
+
+    // --reset exists to accept generated content over a plain edit. Without a check, it accepted
+    // generated content over an ADOPTED file too - the one class of file this tool promises never to
+    // overwrite - silently converting a hand-written file into a machine-owned one.
+    const r = run(['apply', '--root', root, '--model', modelPath, '--reset', 'get-v1-things.yml']);
+    assert.notEqual(r.code, 0, r.out);
+    assert.match(r.out, /adopted/);
+    assert.equal(readFileSync(target, 'utf8'), handWritten, '--reset overwrote an adopted file');
+    const after = JSON.parse(readFileSync(lockFile, 'utf8'));
+    assert.equal(after.requests['get-v1-things.yml'].hash, 'adopted', '--reset stripped the adopted marker');
+  });
+
+  test('a renamed request migrates its lockfile entry to the new path', () => {
+    const root = scratch();
+    writeFileSync(join(root, 'openapi.json'), JSON.stringify(SPEC));
+    const modelPath = join(root, 'model.json');
+    assert.equal(run(['ingest', '--root', root, '--out', modelPath]).code, 0);
+    assert.equal(run(['apply', '--root', root, '--model', modelPath]).code, 0);
+
+    renameSync(join(root, 'bruno/get-v1-things.yml'), join(root, 'bruno/renamed-by-hand.yml'));
+
+    // Applying again reports the rename and changes nothing on disk - but the lockfile used to keep
+    // a permanent, dangling entry under the old name and never recorded the file under its real one.
+    const r = run(['apply', '--root', root, '--model', modelPath]);
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /moved/);
+
+    const lock = JSON.parse(readFileSync(join(root, 'bruno/.bruno-gen/lock.json'), 'utf8'));
+    assert.ok(lock.requests['renamed-by-hand.yml'], 'the new name must be recorded as owned');
+    assert.equal(lock.requests['renamed-by-hand.yml'].endpointKey, 'GET /v1/things');
+    assert.equal(lock.requests['get-v1-things.yml'], undefined, 'the old, now-nonexistent path must not linger');
+  });
+
+  test('a required path parameter is not "already reported" just because its name is a substring of another', () => {
+    const model = {
+      modelVersion: 1,
+      collection: {
+        name: 'X', format: 'bru', outputDir: 'bruno', routePrefix: '', baseUrlVar: 'baseUrl',
+        environments: [{ name: 'dev', vars: {}, secrets: [] }],
+      },
+      folders: [],
+      endpoints: [{
+        endpointKey: 'GET /widgets/{1}/reviews/{2}',
+        name: 'Get review',
+        method: 'GET',
+        pathTemplate: '/widgets/{widgetId}/reviews/{id}',
+        params: [
+          { in: 'path', name: 'widgetId', required: true, value: '', disabled: false },
+          { in: 'path', name: 'id', required: true, value: '', disabled: false },
+        ],
+      }],
+      // Only the longer name is listed. A plain `field.includes(p.name)` treated "id" as already
+      // reported too, because "widgetId" contains "id" as a substring.
+      unresolved: [
+        { endpointKey: 'GET /widgets/{1}/reviews/{2}', field: '/params/path/widgetId/value', reason: 'no usable value' },
+      ],
+    };
+    const check = validateModel(model);
+    assert.equal(check.ok, false, 'dropping "id" from unresolved[] must still be caught');
+    assert.ok(
+      check.problems.some((p) => /"id"/.test(p) && /not listed in unresolved/.test(p)),
+      check.problems.join(' | '),
+    );
+  });
+
+  test('a literal "//" inside a route string is not mistaken for the start of a comment', () => {
+    const dir = scratch();
+    // The "//" inside the string sits BEFORE the HTTP marker on the same line. A comment stripper
+    // that does not track string literals reads it as a line comment and drops everything after it -
+    // including the marker that would otherwise make this an HTTP surface.
+    writeFileSync(join(dir, 'app.js'), 'const legacyPath = "/a//b"; router.get("/widgets", h);');
+    assert.equal(surfaceSignals(dir).hasHttp, true, 'a "//" inside a string must not hide a marker after it');
   });
 });

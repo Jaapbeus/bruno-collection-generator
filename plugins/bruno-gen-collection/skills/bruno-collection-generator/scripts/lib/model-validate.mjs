@@ -120,8 +120,12 @@ export function validateModel(model) {
     // forbids: it must instead be reported as unresolved.
     for (const p of ep.params ?? []) {
       if (p.required && !p.disabled && String(p.value ?? '') === '') {
+        // A substring test against a JSON-pointer-shaped field (`/params/path/widgetId/value`) or a
+        // dot-joined one (`params.id`) treats one parameter's name as "already listed" whenever it
+        // happens to be a substring of another's - `id` inside `widgetId`, `key` inside `apiKey`. Split
+        // on the field's own separators and require an exact segment match instead.
         const listed = (model.unresolved ?? []).some(
-          (u) => u.endpointKey === ep.endpointKey && u.field.includes(p.name),
+          (u) => u.endpointKey === ep.endpointKey && u.field.split(/[./]/).filter(Boolean).includes(p.name),
         );
         if (!listed) {
           problems.push(

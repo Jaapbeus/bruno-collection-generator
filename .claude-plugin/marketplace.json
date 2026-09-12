@@ -4,7 +4,7 @@
   "description": "Data integration tooling for Claude Code",
   "owner": {
     "name": "Jaap van Beusekom",
-    "url": "https://github.com/jaapbeus"
+    "url": "https://github.com/Jaapbeus"
   },
   "plugins": [
     {
@@ -13,7 +13,7 @@
       "source": "./plugins/bruno-gen-collection",
       "author": {
         "name": "Jaap van Beusekom",
-        "url": "https://github.com/jaapbeus"
+        "url": "https://github.com/Jaapbeus"
       },
       "homepage": "https://github.com/Jaapbeus/bruno-collection-generator",
       "repository": "https://github.com/Jaapbeus/bruno-collection-generator",
