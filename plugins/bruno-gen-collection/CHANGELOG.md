@@ -42,6 +42,14 @@ the reasoning file by file.
   across planning as well as the write, so a plan is never applied against a collection another run has
   since changed.
 - A lockfile key claiming a path outside the collection is reported and never offered for pruning.
+- **`--reset <path>` did not check for the one hash that must never be reset.** It cleared any owned
+  entry's recorded hash so the next write would go through, including one whose hash was `"adopted"` —
+  silently converting a hand-written file into a machine-owned one and destroying the exact marker that
+  is supposed to protect it forever. `--reset` now refuses an adopted path by name, the same way
+  `--prune` already did.
+- A renamed request's lockfile entry stayed at its old, now-nonexistent path forever: `apply` reported
+  the move but never recorded the file under its real name. It is migrated to the new path now, unless
+  the entry is adopted, which is never touched.
 
 ### Fixed — re-running changes nothing
 - A query value went into the URL unencoded, so an `&` in one started a second query parameter. Only
@@ -65,6 +73,13 @@ the reasoning file by file.
   the model and shown to nobody.
 - Taking over a stale run lock is reported in `--json`, not only in the text report.
 - `probe` says when a file cap truncated the scan, so "no HTTP surface here" is never a guess.
+- **A required parameter could be wrongly treated as already reported.** The check that a required,
+  empty value is listed in `unresolved[]` matched a parameter's name as a *substring* of the field it
+  was comparing against, so `id` was "found" inside `/params/path/widgetId/value` and a genuinely
+  missing `id` entry passed validation anyway. It now requires an exact segment match.
+- A discriminated body's injected `kind` value could mutate a node shared with another branch or
+  endpoint in the parsed spec tree, because the example object it wrote into was not always a copy.
+  It is copied before the write now.
 
 ### Fixed — portability and the command surface
 - Run locks are now created exclusively, identify the actual collection rather than the caller's
@@ -87,12 +102,23 @@ the reasoning file by file.
   silently accepting typos. Human reports escape terminal control characters.
 - GitHub workflows use the current Node 24-based checkout and setup actions rather than deprecated
   Node 20-based action runtimes.
+- The HTTP-marker comment stripper treated a literal `//` inside a string (a route like `"/a//b"`) as
+  the start of a line comment, silently dropping the rest of that source line — including a marker
+  after it. It now tracks string literals and never strips inside one.
 
 ### Changed
 - The runtime version lives in one small module, is printed by `version`, and is checked against the
   public plugin manifest so marketplace updates and generated lockfiles cannot drift.
 
 ### Documented
+- **`/plugin` is a CLI command, and the README did not say so.** Hit on a real install: in the VS Code
+  extension `/plugin marketplace add` answers "isn't available in this environment", and the invocation
+  attempted next then fails with `Unknown command: /bruno-gen-collection:bruno-collection-generator` —
+  which reads as a broken plugin or a wrong command name when the syntax was right all along. The
+  Install section now names the CLI as the place those two commands run, says the editor extensions pick
+  the plugin up afterwards because it lands in `~/.claude`, and carries a Troubleshooting table mapping
+  each of those two messages to its cause. The SSH-clone default moved up against the command block it
+  breaks, rather than sitting below where nobody hitting it would look.
 - **A secret or PII scanner will flag the lockfile, and it will be wrong.** Found on a real pipeline:
   gitleaks and a hand-rolled pattern scan both matched a Dutch mobile number *inside* a sha256 digest in
   `.bruno-gen/lock.json`. Not bad luck — a digest matches `06[-\s]?[0-9]{8}` 0.48% of the time, so a
@@ -100,6 +126,29 @@ the reasoning file by file.
   provably a false positive (the lockfile has no field that can carry a value) and `docs/ci.md` gives the
   repair: anchor the pattern, because hex letters are word characters and `\b` keeps the rule out of
   digests. No code change — the emitted hash stays hex.
+- **A deep, full-codebase pass against every doc claim, not only a recent change.** Six parallel
+  reviews, one per module group, each cross-checking README/CLAUDE.md/`docs/`/`reference/` against the
+  code and, where feasible, against a live run. Two real code defects came out of it (above); the rest
+  was documentation that had quietly drifted from what the code now does:
+  - `docs/ci.md`'s credential-check example read `d.suspectedSecrets` / `s.file` / `s.rule` — fields
+    that do not exist. `doctor --json` returns `secretFindings` with `.path`/`.reason`/`.key`; as
+    written, the example's `?.length` was always `undefined` and the documented CI gate could never
+    fire. Fixed, and the same table now says `--allow-unresolved` is `apply`-only, not a general fix
+    for exit 4 — `docs/ci.md`'s own suggested `plan --json` pipeline step does not accept it.
+  - `reference/security.md` — the file the model itself reads before writing a value — still described
+    the pre-alpha.10 base64 shape (43–44 chars, the 32-byte case only) and was missing two name
+    keywords (`subscription-key`, `access-key`) already live in `secrets.mjs`. Updated to match.
+  - README's `.bru` quick-reference table listed `#` as a valid whole-line comment. Tested directly
+    against the vendored parser: it throws. The row now says there is no comment syntax, matching
+    `reference/bru-and-yml-format.md`.
+  - README said body-type resolution "recurses three levels deep"; the code processes depths 0–5 (six
+    levels) before truncating. Corrected. README's test count (300) was stale by the four tests this
+    review itself added, plus one more the previous count had simply missed; both are listed at 309 now.
+  - README's config field list did not mention `$schema` and `extras`, both accepted without a warning,
+    and did not list the single-auth-recipe-per-collection limitation (a per-operation OpenAPI
+    `security` override is not read). Both added.
+  - `marketplace.json`'s `owner.url` and `plugin.json`'s `author.url` used a different letter case
+    (`jaapbeus`) than the `repository`/`homepage` URLs in both files (`Jaapbeus`). Made consistent.
 
 ## 2.0.0-alpha.9 — unreleased
 
@@ -277,8 +326,8 @@ implemented.
   commit message, scanned for credentials, non-zero GUIDs, EANs and internal cloud hostnames. Values are
   redacted in the output. Findings inside the planted-secret fixtures are printed but not counted, and
   only when they carry a visible fake marker — a real credential committed there still fails.
-- `docs/` — migration, CI, adding a source card, and the capability matrix. README rewritten for v2,
-  with every differentiator tied to the test that holds it up.
+- `docs/` — CI, adding a source card, and the capability matrix. README rewritten for v2, with every
+  differentiator tied to the test that holds it up.
 
 ### Fixed
 - **A build artefact could make a directory look like an API.** Every .NET test project carries a

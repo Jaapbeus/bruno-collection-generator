@@ -127,6 +127,14 @@ export function applyPlan({
       errors.push(`--reset ${path}: not owned by the lockfile`);
       continue;
     }
+    // An adopted file is never overwritten, not even by an explicit --reset. Adoption exists so an
+    // installed generator cannot destroy a stranger's hand-written file, and a flag meant for "accept
+    // generated content over my edit" must not become a back door around that guarantee for a file
+    // that was never generated in the first place.
+    if (nextLock[bucket][ownedPath]?.hash === ADOPTED) {
+      errors.push(`--reset ${path}: this file was adopted, not generated - it is never overwritten`);
+      continue;
+    }
     // Force an update by clearing the recorded hash.
     delete nextLock[bucket][ownedPath];
     const d = decisions.find((x) => collisionKey(x.relPath) === collisionKey(path));
@@ -271,6 +279,22 @@ export function applyPlan({
       ...(Number.isFinite(file.seq) ? { seq: file.seq } : {}),
       ...(file.fileName ? { fileName: file.fileName } : {}),
     };
+  }
+
+  // A MOVED decision means the request still exists, just not where the planner's own naming
+  // convention would put it. Leaving the entry at the old, now-nonexistent path meant it never
+  // converged with reality - it survived as a permanent dangling record, and the file's real location
+  // was never itself recorded as owned. Skip an adopted entry: adoption is never touched, moved or not.
+  for (const decision of decisions) {
+    if (decision.status !== STATUS.MOVED) continue;
+    const bucket = bucketFor(decision.kind);
+    const oldPath = entryPathFor(bucket, decision.relPath);
+    const entry = oldPath ? nextLock[bucket]?.[oldPath] : null;
+    if (!entry || entry.hash === ADOPTED) continue;
+    const newAbs = join(collectionRoot, decision.movedTo);
+    if (!existsSync(newAbs)) continue;
+    delete nextLock[bucket][oldPath];
+    nextLock[bucket][decision.movedTo] = { ...entry, hash: canonicalHash(readFileSync(newAbs, 'utf8')) };
   }
 
   const lockStatus = writeLock(collectionRoot, nextLock);

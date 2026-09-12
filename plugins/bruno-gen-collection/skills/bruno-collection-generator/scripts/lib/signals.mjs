@@ -104,10 +104,28 @@ const HTTP_MARKERS = [
  * Strip comments before matching.
  *
  * A commented-out `// app.get("/legacy", h)` counted as a live route. `://` is left alone so a URL
- * in a string is not mistaken for the start of a comment.
+ * in a string is not mistaken for the start of a comment, and a `//` inside a quoted string literal
+ * (a route like `"/a//b"`) is left alone too - a plain "not preceded by `:`" regex read that as a
+ * comment start and silently dropped the rest of the line, including any HTTP marker after it.
  */
 function stripComments(text) {
-  return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  return text.replace(/\/\*[\s\S]*?\*\//g, ' ').split('\n').map(stripLineComment).join('\n');
+}
+
+/** Remove a trailing `//` line comment from one line, but never one inside a string literal. */
+function stripLineComment(line) {
+  let inString = null; // the quote character we are inside, or null
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inString) {
+      if (ch === '\\') { i++; continue; } // an escaped character can't close or open a string
+      if (ch === inString) inString = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { inString = ch; continue; }
+    if (ch === '/' && line[i + 1] === '/' && line[i - 1] !== ':') return line.slice(0, i);
+  }
+  return line;
 }
 
 /** Azure Functions in-process: recognised, deliberately not extracted. */

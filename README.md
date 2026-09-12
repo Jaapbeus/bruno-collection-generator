@@ -27,7 +27,7 @@ with the tests that hold each part up.
 | `apply` | writes the collection, merging with what you have edited |
 | `smoke` | runs the collection with Bruno's CLI to prove it works. Real requests, so it needs `--yes` |
 
-**300 tests** across nine files, on Ubuntu, macOS and Windows, on Node 20, 22 and 24.
+**309 tests** across nine files, on Ubuntu, macOS and Windows, on Node 20, 22 and 24.
 
 Two things are deliberately *not* automated, and saying so is part of the design:
 
@@ -135,18 +135,33 @@ collection's requests and may execute its scripts, forced into Bruno's `safe` sa
 
 ## Install
 
+`/plugin` is a **Claude Code CLI** command. The VS Code and JetBrains extensions do not have it — there
+it answers `/plugin isn't available in this environment`. Open a terminal, start `claude`, then:
+
 ```
 /plugin marketplace add Jaapbeus/bruno-collection-generator
 /plugin install bruno-gen-collection@jaapbeus-plugins
 ```
 
+The marketplace shorthand clones over SSH by default. If you have no SSH key configured, set
+`CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` or give the full URL
+`https://github.com/Jaapbeus/bruno-collection-generator`.
+
 Then `/reload-plugins` and invoke `/bruno-gen-collection:bruno-collection-generator`.
 
-The marketplace shorthand clones over SSH by default. If you have no SSH key configured, set
-`CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` or use the full `https://` URL.
+Plugins install into `~/.claude`, not into a project, so the editor extensions pick this one up once the
+CLI has installed it — restart the session there and invoke it the same way.
 
 Always invoke the namespaced form. A bare `/bruno-collection-generator` works only when no other
 command claims that name, and two other published skills share it — so it is not something to rely on.
+
+### Troubleshooting
+
+| Symptom | What it means |
+|---|---|
+| `/plugin isn't available in this environment` | You are in an editor extension. Run the two install commands in the CLI; the extension picks the plugin up afterwards. |
+| `Unknown command: /bruno-gen-collection:bruno-collection-generator` | The invocation is correct and the plugin is not installed yet — almost always because the install above never ran. `/reload-plugins` reports how many plugins and skills it loaded. |
+| A git or authentication error on `marketplace add` | The SSH-clone default. Set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1` or pass the full `https://github.com/…` URL. |
 
 ---
 
@@ -178,6 +193,8 @@ Everything is optional. `bruno-gen.json` in your repository root:
   credentials, so they are not stripped out of your requests. Patterns are capped at 256 characters;
   backreferences, repeated groups and expressions with multiple repetition operators are rejected so
   repository-supplied regex cannot stall a scan.
+- `$schema` (an editor hint, otherwise ignored) and `extras` (a free-form object, per-project or
+  collection-wide, passed through untouched for the model to read) are also accepted without a warning.
 
 This file is treated as untrusted input, because it comes from the repository being inspected: a path
 that escapes the repository is a hard error, and an unknown key is a warning that gets ignored, so a
@@ -220,7 +237,7 @@ Bruno stores collections as plain text:
 | Docs | `docs { any markdown text }` |
 | Tests | `tests { test("name", () => { expect(res.status).to.equal(200) }) }` |
 | Environment | `vars { baseUrl: http://localhost:7071 }` |
-| Comment | `# whole line only — no inline comments` |
+| Comment | none — a `#` or `//` line makes the file unparseable; put notes in `docs {}` instead |
 
 ---
 
@@ -230,7 +247,10 @@ Bruno stores collections as plain text:
 - Insomnia exports are not supported yet.
 - WSDL is best-effort import only; there is no source inference for SOAP.
 - Field-level merge is not implemented: a file you edited is kept whole, not merged line by line.
-- Body-type resolution recurses three levels deep; deeper nesting is truncated.
+- Body-type resolution recurses six levels deep; deeper nesting is truncated.
+- One auth recipe per collection: a per-operation OpenAPI `security` override (e.g. one public
+  endpoint on an otherwise authenticated API) is not read; every endpoint inherits the collection's
+  single auth block.
 
 ---
 
